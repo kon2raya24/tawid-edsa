@@ -1,0 +1,16 @@
+{
+  "name": "Tawid EDSA: Uwi na, Kokak!",
+  "short_name": "Tawid EDSA",
+  "description": "The classic lane-crossing arcade game, Pinoy style: get Kokak the palaka across rainy EDSA and home to his family.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#12141f",
+  "theme_color": "#12141f",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

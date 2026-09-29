@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tawid EDSA</title>
+<meta name="description" content="Uwi na, Kokak! Help a little palaka hop across rainy EDSA traffic and the estero to reach his family in the palayan. The classic lane-crossing arcade game, Pinoy style.">
+<meta property="og:title" content="Tawid EDSA: Uwi na, Kokak!">
+<meta property="og:description" content="Hop across jeepneys, P2P buses and tricycles, ride the troso and the pagong, dodge the buwaya, and get Kokak home to his five gabi leaves.">
+<meta property="og:image" content="https://tawid-edsa.vercel.app/og.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#12141f">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Tawid EDSA">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&display=swap" rel="stylesheet">
+<style>
+:root { --bg: #12141f; --ink: #fff8e1; --muted: #cfd6e6; --green: #7cf29a; --gold: #ffd23f; --pink: #ff8ae2; color-scheme: dark; }
+* { box-sizing: border-box; }
+html, body { margin: 0; min-height: 100%; color: var(--ink); font: 16px/1.45 "Baloo 2", system-ui, -apple-system, "Segoe UI", sans-serif; }
+body { background: radial-gradient(ellipse at 50% 0%, #1f3a3a 0%, #141a26 55%, #07080d 100%) fixed; background-color: var(--bg); }
+.wrap { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 10px 16px; gap: 8px; }
+.stage { position: relative; width: min(100%, 600px, calc((100vh - 44px) * 480 / 500)); aspect-ratio: 480 / 500; touch-action: none; user-select: none; -webkit-user-select: none; border-radius: 12px; overflow: hidden; box-shadow: 0 12px 44px rgba(0,0,0,.6), 0 0 0 2px rgba(124,242,154,.25); }
+body.touch.playing .stage { width: min(100%, 600px, calc((100vh - 190px) * 480 / 500)); }
+canvas { display: block; width: 100%; height: 100%; }
+.screen { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: safe center; gap: 9px; padding: 18px; text-align: center; background: rgba(10, 14, 22, 0.84); overflow-y: auto; }
+[hidden] { display: none !important; }
+.logo { margin: 0; font-size: clamp(42px, 12vw, 70px); line-height: .9; font-weight: 800; color: var(--green); text-shadow: 0 5px 0 #1f6a28, 0 0 34px rgba(124,242,154,.35); }
+.logo small { display: block; margin-top: 8px; font-size: .36em; color: var(--gold); text-shadow: none; letter-spacing: .06em; }
+.tag { margin: 0; color: var(--muted); max-width: 30em; }
+h2 { margin: 0; font-size: clamp(22px, 5.6vw, 32px); color: var(--green); line-height: 1.15; }
+.row, .modes { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+button { font: inherit; font-weight: 700; color: var(--ink); background: rgba(34, 70, 64, .9); border: 2px solid rgba(124, 242, 154, .45); border-radius: 12px; padding: 8px 16px; cursor: pointer; min-height: 44px; }
+button:hover { background: rgba(44, 92, 84, .95); }
+button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+button.primary { background: var(--green); color: #0f2a17; border-color: var(--green); box-shadow: 0 4px 0 #2f8f3a; }
+button.sound { min-width: 44px; padding: 6px 10px; font-size: 18px; }
+button.calm { font-size: 13px; min-height: 36px; padding: 2px 12px; }
+.modes button { min-height: 38px; padding: 4px 14px; font-size: 15px; }
+.modes button[aria-pressed=true] { background: var(--gold); color: #3a2a0a; border-color: var(--gold); }
+.muted { color: var(--muted); margin: 0; font-size: 14px; }
+.cast { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; text-align: left; font-size: 14px; color: var(--muted); }
+.cast b { color: var(--ink); }
+.keys { color: var(--muted); font-size: 13px; margin: 0; }
+kbd { background: #1f3a3a; border: 1px solid #3f6a5a; border-radius: 4px; padding: 0 6px; font: 12px ui-monospace, monospace; }
+.score { font-size: clamp(44px, 12vw, 64px); font-weight: 800; color: var(--gold); line-height: 1; }
+.new { color: var(--pink); font-weight: 800; }
+.note { max-width: 26em; margin: 0; padding: 12px 16px; border-radius: 14px; background: rgba(255,248,225,.08); border: 1px dashed rgba(255,210,63,.5); font-size: 16px; }
+.note b { color: var(--gold); }
+.toast { position: absolute; left: 50%; top: 12%; transform: translateX(-50%); background: rgba(10, 14, 22, .94); border: 2px solid var(--green); border-radius: 12px; padding: 6px 14px; font-weight: 700; font-size: 14px; pointer-events: none; width: max-content; max-width: 90%; text-align: center; z-index: 3; }
+.corner { position: absolute; right: 1.5%; bottom: 1.2%; z-index: 2; }
+.corner button { min-height: 28px; padding: 0 10px; font-size: 12px; background: rgba(10,14,22,.7); }
+.pad { display: none; grid-template-columns: repeat(3, 64px); grid-template-rows: repeat(2, 58px); gap: 6px; }
+body.touch.playing .pad { display: grid; }
+.pad button { padding: 0; font-size: 22px; border-radius: 14px; background: rgba(34, 70, 64, .75); }
+.pad [data-dir="0"] { grid-column: 2; grid-row: 1; } .pad [data-dir="3"] { grid-column: 1; grid-row: 2; } .pad [data-dir="2"] { grid-column: 2; grid-row: 2; } .pad [data-dir="1"] { grid-column: 3; grid-row: 2; }
+.help { color: var(--muted); font-size: 13px; margin: 0; text-align: center; }
+.help a { color: var(--green); }
+@media (max-width: 560px) { .screen { position: fixed; inset: 8px; z-index: 5; border-radius: 14px; } }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+<main class="wrap">
+  <div class="stage" id="stage">
+    <canvas id="board" width="480" height="500" role="img" aria-label="A rainy EDSA crossing: traffic below, an estero above, and Kokak the frog hopping home to five gabi leaves in the palayan"></canvas>
+    <div class="toast" id="toast" role="status" hidden></div>
+
+    <section class="screen" id="title">
+      <h1 class="logo">TAWID EDSA<small>Uwi na, Kokak!</small></h1>
+      <p class="tag">Umuulan sa Maynila, at kailangang makauwi ni Kokak sa pamilya niya sa palayan. Tumawid sa EDSA, sumakay sa troso at pagong, at iwasan ang buwaya!</p>
+      <div class="modes" role="group" aria-label="Difficulty">
+        <button type="button" data-diff="madali">Madali</button>
+        <button type="button" data-diff="katamtaman">Katamtaman</button>
+        <button type="button" data-diff="mahirap">Mahirap</button>
+      </div>
+      <p class="muted" id="diff-note"></p>
+      <div class="row">
+        <button type="button" class="primary" id="play">Laro na! · Play</button>
+        <button type="button" id="resume-level" hidden></button>
+        <button type="button" class="sound"></button>
+      </div>
+      <p class="muted" id="title-best"></p>
+      <ul class="cast">
+        <li><b>Troso, balsa, bangka</b> · sakyan, pero tatangayin ka</li>
+        <li><b>Pagong at water lily</b> · lumulubog paminsan-minsan</li>
+        <li><b>Lamok sa dahon</b> +200 · <b>anak na palaka</b> +200</li>
+        <li><b>Buwaya at ahas</b> · lumayo!</li>
+      </ul>
+      <p class="keys"><kbd>←</kbd><kbd>↑</kbd><kbd>↓</kbd><kbd>→</kbd> or <kbd>WASD</kbd> to hop, or swipe · <kbd>P</kbd> pause · <kbd>M</kbd> sound</p>
+      <button type="button" class="calm" aria-pressed="false"></button>
+    </section>
+
+    <section class="screen" id="safety" hidden>
+      <h2>Paalala lang...</h2>
+      <p class="note"><b>Manong Enforcer:</b> "Si Kokak ay palaka, kaya siya lang ang tumatawid nang ganyan. Tayo, sa footbridge o sa pedestrian lane!"</p>
+      <p class="muted">At kapag baha, huwag lumusong: may leptospirosis.</p>
+      <button type="button" class="primary" id="safety-ok">Opo! · Let's go</button>
+    </section>
+
+    <section class="screen" id="pause" hidden>
+      <h2>Hinto · Paused</h2>
+      <div class="row">
+        <button type="button" class="primary" id="resume">Tuloy · Resume</button>
+        <button type="button" class="sound"></button>
+        <button type="button" class="menu">Menu</button>
+      </div>
+      <button type="button" class="calm" aria-pressed="false"></button>
+    </section>
+
+    <section class="screen" id="clear" hidden aria-live="polite">
+      <h2>Kumpleto ang pamilya!</h2>
+      <p class="tag" id="clear-place"></p>
+      <p class="muted">+1000 bonus · Kokak! Kokak!</p>
+      <p class="tag" id="clear-next"></p>
+      <p class="muted" id="clear-tip"></p>
+      <button type="button" class="primary" id="next">Tuloy ▶</button>
+    </section>
+
+    <section class="screen" id="over" hidden>
+      <h2>Ubos na ang buhay!</h2>
+      <div class="score" id="over-score"></div>
+      <p id="over-best"></p>
+      <p class="muted" id="over-where"></p>
+      <p class="muted" id="over-tip"></p>
+      <div class="row">
+        <button type="button" class="primary" id="continue"></button>
+        <button type="button" id="retry">Ulit mula sa simula</button>
+        <button type="button" class="menu">Menu</button>
+      </div>
+    </section>
+
+    <div class="corner" id="pause-btn" hidden><button type="button" aria-label="Pause">❚❚ Hinto</button></div>
+  </div>
+  <div class="pad" aria-label="Direction pad">
+    <button type="button" data-dir="0" aria-label="Hop up">▲</button>
+    <button type="button" data-dir="3" aria-label="Hop left">◀</button>
+    <button type="button" data-dir="2" aria-label="Hop down">▼</button>
+    <button type="button" data-dir="1" aria-label="Hop right">▶</button>
+  </div>
+  <p class="help">A lane-crossing arcade game by <a href="https://kon2raya.netlify.app" target="_blank" rel="noopener">Lemmuel Turaya</a> · sa totoong buhay, sa footbridge tumawid · <a href="https://tambayan-arcade.vercel.app/">More games</a> · <a href="https://tambayan-arcade.vercel.app/#support">☕ Support</a></p>
+</main>
+<script>if (matchMedia('(pointer: coarse)').matches) document.body.classList.add('touch');</script>
+<script type="module" src="src/main.mjs"></script>
+</body>
+</html>
