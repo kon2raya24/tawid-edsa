@@ -1,10 +1,13 @@
-// Offline play: the game's own files are cached on install and served cache-first; the webfont is
-// cached the first time it loads. Bump VERSION whenever a file changes so players get the update.
-const VERSION = 'tawidedsa-v1';
+// Offline play: the game's own files (three.js included) are cached on install and served cache-first;
+// the webfonts, the scanned surfaces, the skies and the recordings are cached the first time they load.
+// Bump VERSION whenever a file changes so players get the update.
+const VERSION = 'tawidedsa-v2';
 const ASSETS = [
   './', 'index.html', 'manifest.webmanifest',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png',
   'src/main.mjs', 'src/game.mjs', 'src/stages.mjs', 'src/render.mjs', 'src/audio.mjs', 'src/bot.mjs', 'src/rng.mjs',
+  'src/view3d.mjs', 'src/world3d.mjs', 'src/models3d.mjs', 'src/frog3d.mjs', 'src/water3d.mjs', 'src/fx3d.mjs', 'src/post.mjs', 'src/envpack.mjs', 'src/tex.mjs', 'src/kit.mjs', 'src/space.mjs',
+  'src/vendor/three.module.min.js', 'src/vendor/three-fx.min.js', 'src/vendor/three-mocap.min.js', 'src/vendor/three-extra.min.js',
 ];
 
 self.addEventListener('install', (e) => {

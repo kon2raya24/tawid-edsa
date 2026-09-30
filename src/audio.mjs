@@ -1,6 +1,10 @@
-// Synthesized sound for Tawid EDSA: a jaunty loop over the rain, a hop blip, Kokak's "ko-kak!", a
-// jeepney horn now and then, splashes, and short jingles. Nothing plays until start() runs from a
-// user gesture.
+// Sound for Tawid EDSA. Real recordings (CC0, from Kenney): the thud of a hit, a landing on wood, on a
+// turtle's shell, on the grass or the concrete, steel-drum jingles for a full family, a bonus life and the
+// end, and menu clicks. Around them, synthesized: a jaunty loop over the rain, Kokak's "ko-kak!", a
+// jeepney horn now and then, splashes. Nothing plays until start() runs from a user gesture; the
+// recordings load then, and without them the synthesized sounds play alone.
+const SAMPLES = { hit: 3, metal: 3, wood: 3, soft: 3, grass: 3, step: 3, clear: 1, extra: 1, over: 1, ui: 3 };
+const SURFACE = { troso: 'wood', balsa: 'wood', bangka: 'wood', banig: 'soft', ferry: 'metal', batya: 'metal', pagong: 'soft', lily: 'soft', salbabida: 'soft', styro: 'soft' };
 const NOTE = (n) => 440 * 2 ** ((n - 69) / 12);
 // I–V–vi–IV in C, one bar each; a melody of eighth notes (-1 rests), and a bass on the beat
 const CHORDS = [[60, 64, 67], [55, 59, 62], [57, 60, 64], [53, 57, 60]];
@@ -9,8 +13,9 @@ const MELODY = [
   [72, -1, 76, 79, 76, 72, -1, 69], [72, 74, 76, -1, 74, 72, 69, -1],
 ];
 
-export function createAudio() {
+export function createAudio({ base = 'assets/sfx/' } = {}) {
   let ctx = null, master = null, music = null, sfx = null, noise = null, rainGain = null, muted = false;
+  const buf = {}, mix = { music: 1, sfx: 1 };
   let step = 0, nextAt = 0, playing = false, tempo = 118, hornT = 6;
 
   function start() {
@@ -18,7 +23,8 @@ export function createAudio() {
     try { ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch { return; }
     master = ctx.createGain(); master.gain.value = muted ? 0 : 0.7; master.connect(ctx.destination);
     music = ctx.createGain(); music.gain.value = 0; music.connect(master);
-    sfx = ctx.createGain(); sfx.connect(master);
+    sfx = ctx.createGain(); sfx.gain.value = mix.sfx; sfx.connect(master);
+    for (const [k, n] of Object.entries(SAMPLES)) for (let i = 0; i < n; i++) { const name = n > 1 ? k + i : k; fetch(`${base}${name}.mp3`).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject())).then((a) => ctx.decodeAudioData(a)).then((b) => { buf[name] = b; }).catch(() => { /* synth only */ }); }
     noise = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
     const d = noise.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
     // the rain: looping noise, low-passed, loud or soft by place
@@ -30,6 +36,18 @@ export function createAudio() {
     setInterval(schedule, 50);
   }
 
+  // one take of a recording, a little higher or lower each time; false if it isn't loaded
+  function play(name, gain = 1, rate = 1, vary = 0.08, when = 0) {
+    if (!ctx || muted) return false;
+    const n = SAMPLES[name] || 0, takes = n > 1 ? Array.from({ length: n }, (_, i) => buf[name + i]).filter(Boolean) : buf[name] ? [buf[name]] : [];
+    if (!takes.length) return false;
+    const s = ctx.createBufferSource(), g = ctx.createGain();
+    s.buffer = takes[Math.floor(Math.random() * takes.length)]; s.playbackRate.value = rate * (1 + (Math.random() * 2 - 1) * vary);
+    g.gain.value = gain; s.connect(g).connect(sfx); s.start(ctx.currentTime + when);
+    return true;
+  }
+  // water: a plop with a bubble, bigger for a fall in
+  function splash(big = false, when = 0) { hiss(big ? 0.5 : 0.14, big ? 900 : 1600, big ? 0.2 : 0.07, when, 'lowpass', big ? 180 : 500); tone(big ? 260 : 520, big ? 0.18 : 0.08, 'sine', big ? 0.06 : 0.035, when + 0.02, big ? 2.2 : 1.8); }
   function tone(freq, dur, type = 'square', gain = 0.05, when = 0, bend = 0, out = sfx) {
     if (!ctx || muted) return;
     const t = ctx.currentTime + when, o = ctx.createOscillator(), g = ctx.createGain();
@@ -66,28 +84,36 @@ export function createAudio() {
   return {
     start,
     setMuted(m) { muted = m; if (master) master.gain.value = m ? 0 : 0.7; },
+    setMix(m) { mix.music = m.music ?? mix.music; mix.sfx = m.sfx ?? mix.sfx; if (sfx) sfx.gain.value = mix.sfx; },
+    ui(k = 0) { if (!play('ui' + k, 0.5, 1, 0.02)) tone(880, 0.04, 'square', 0.02); },
     update(g, on, dt) {
       if (!ctx) return;
       const live = on && g && (g.phase === 'play' || g.phase === 'ready');
       if (live !== playing) { playing = live; if (live) nextAt = ctx.currentTime + 0.05; }
-      music.gain.setTargetAtTime(live ? 1 : 0, ctx.currentTime, 0.2);
+      music.gain.setTargetAtTime(live ? mix.music : 0, ctx.currentTime, 0.2);
       tempo = 112 + (g ? (g.def.n - 1) * 6 + g.loop * 8 : 0) + (g && g.timeLeft < 600 ? 14 : 0);
-      rainGain.gain.setTargetAtTime(on && g && !muted ? 0.02 + 0.05 * g.def.rain : 0, ctx.currentTime, 0.5);
+      rainGain.gain.setTargetAtTime(g && !muted ? (on ? 0.02 + 0.05 * g.def.rain : 0.012 + 0.03 * g.def.rain) * mix.sfx : 0, ctx.currentTime, 0.5);
       // somewhere on EDSA, a jeepney honks
       if (live && (hornT -= dt) <= 0) { hornT = 4 + Math.random() * 7; horn(0, 0.012, 1 + Math.floor(Math.random() * 2)); }
     },
-    event(e) {
+    event(e, g) {
       if (!ctx || muted) return;
       switch (e.type) {
         case 'hop': tone(e.dir === 2 ? 520 : 640, 0.07, 'square', 0.035, 0, 1.5); break;
-        case 'land': if (e.water) hiss(0.08, 1800, 0.04); break;
+        case 'land': {
+          if (e.water) { const lane = g && g.lanes[e.row]; if (!play(SURFACE[lane && lane.type] || 'wood', 0.5, 1.1)) hiss(0.08, 1800, 0.04); splash(false); }
+          else if (e.row === 0) play('soft', 0.5, 1.2);
+          else if (!play(e.row >= 12 || e.row === 6 ? 'step' : 'step', 0.35, 1.3)) hiss(0.04, 900, 0.03, 0, 'lowpass');
+          if (g && g.def && g.def.n === 2 && e.row >= 7 && e.row <= 11) splash(false);
+          break;
+        }
         case 'go': horn(0, 0.04); break;
-        case 'home': croak(); [0, 4, 7, 12].forEach((k, i) => tone(NOTE(72 + k), 0.12, 'triangle', 0.05, 0.3 + i * 0.07)); if (e.lamok) tone(900, 0.2, 'sine', 0.05, 0.1, 0.4); break;
-        case 'levelClear': [60, 64, 67, 72, 67, 72, 76, 79].forEach((n, i) => { tone(NOTE(n), 0.16, 'square', 0.045, i * 0.12); tone(NOTE(n - 12), 0.16, 'triangle', 0.05, i * 0.12); }); croak(1.1); croak(1.4); break;
+        case 'home': play('soft', 0.6, 0.9); croak(); [0, 4, 7, 12].forEach((k, i) => tone(NOTE(72 + k), 0.12, 'triangle', 0.05, 0.3 + i * 0.07)); if (e.lamok) tone(900, 0.2, 'sine', 0.05, 0.1, 0.4); break;
+        case 'levelClear': if (play('clear', 0.7, 1, 0)) { croak(1.2); croak(1.5); break; } [60, 64, 67, 72, 67, 72, 76, 79].forEach((n, i) => { tone(NOTE(n), 0.16, 'square', 0.045, i * 0.12); tone(NOTE(n - 12), 0.16, 'triangle', 0.05, i * 0.12); }); croak(1.1); croak(1.4); break;
         case 'died':
-          if (['tubig', 'anod'].includes(e.cause)) { hiss(0.5, 900, 0.18, 0, 'lowpass', 150); for (let k = 0; k < 4; k++) tone(300 + k * 90, 0.06, 'sine', 0.04, 0.2 + k * 0.08, 1.6); }
+          if (['tubig', 'anod'].includes(e.cause)) { splash(true); hiss(0.5, 900, 0.18, 0, 'lowpass', 150); for (let k = 0; k < 4; k++) tone(300 + k * 90, 0.06, 'sine', 0.04, 0.2 + k * 0.08, 1.6); }
           else if (e.cause === 'oras') [67, 64, 60].forEach((n, i) => tone(NOTE(n), 0.2, 'triangle', 0.06, i * 0.16));
-          else { horn(0, 0.05); tone(160, 0.3, 'sawtooth', 0.06, 0.28, 0.4); hiss(0.2, 400, 0.12, 0.28, 'lowpass'); }
+          else { horn(0, 0.05); if (!play('hit', 0.9, 0.9)) tone(160, 0.3, 'sawtooth', 0.06, 0.28, 0.4); play('metal', 0.4, 0.8, 0.1, 0.03); hiss(0.2, 400, 0.12, 0.05, 'lowpass'); }
           break;
         case 'lamok': tone(600, 0.3, 'sawtooth', 0.008, 0, 1.03); break;
         case 'buwayaPeek': tone(90, 0.3, 'sawtooth', 0.05, 0, 0.8); break;
@@ -96,8 +122,8 @@ export function createAudio() {
         case 'anakAboard': [0, 4, 7].forEach((k, i) => tone(NOTE(79 + k), 0.08, 'triangle', 0.05, i * 0.05)); break;
         case 'anakLost': tone(400, 0.3, 'triangle', 0.04, 0, 0.5); break;
         case 'timeLow': for (let k = 0; k < 3; k++) tone(880, 0.06, 'square', 0.04, k * 0.12); break;
-        case 'extraLife': [0, 4, 7, 12, 16].forEach((k, i) => tone(NOTE(72 + k), 0.14, 'square', 0.04, i * 0.08)); break;
-        case 'gameover': [67, 64, 60, 55].forEach((n, i) => tone(NOTE(n), 0.4, 'triangle', 0.07, i * 0.28)); break;
+        case 'extraLife': if (play('extra', 0.6, 1, 0)) break; [0, 4, 7, 12, 16].forEach((k, i) => tone(NOTE(72 + k), 0.14, 'square', 0.04, i * 0.08)); break;
+        case 'gameover': if (play('over', 0.6, 1, 0)) break; [67, 64, 60, 55].forEach((n, i) => tone(NOTE(n), 0.4, 'triangle', 0.07, i * 0.28)); break;
         default: break;
       }
     },
