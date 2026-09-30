@@ -433,10 +433,10 @@ export function createView(canvas, { gfx = null, low = false, layer = null, touc
   const target = new THREE.Vector3(), camPos = new THREE.Vector3(), lookAt = new THREE.Vector3();
   const pts = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];
   let W = 1, H = 1;
-  function margins() { return { mx: 0.02, mt: W < H ? 0.16 : 0.2, mb: touch && W < H ? 0.64 : W < H ? 0.24 : 0.12 }; }
+  function margins() { return { mx: 0.015, mt: W < H ? 0.17 : 0.2, mb: touch && W < H ? 0.6 : W < H ? 0.24 : 0.12 }; }
   function setOffset() {
     const { mt, mb } = margins(), cy = (mb - mt) / 2;
-    camera.setViewOffset(W, H, 0, (-cy * H) / 2, W, H);
+    camera.setViewOffset(W, H, 0, (cy * H) / 2, W, H); // the usable band's middle, between the HUD rows
   }
   // The distance that fits the given ground points inside the screen's margins, looking from pitch.
   function fitDistance(tgt, pitch, P) {
@@ -453,11 +453,11 @@ export function createView(canvas, { gfx = null, low = false, layer = null, touc
   }
   // the board framing: the whole width, and the rows around Kokak (all of them in 'board' mode)
   function framing(g, mode, fz) {
-    const aspect = W / H, pitch = aspect < 1 ? 1.0 : 0.76;
+    const aspect = W / H, pitch = aspect < 1 ? 1.26 : 0.76; // portrait: nearly top-down, so the rows keep their depth
     const frogRow = (fz / 2) + 6;
     let r0 = -0.7, r1 = 12.7;
-    if (mode !== 'board') { r0 = Math.max(-0.7, frogRow - 5.2); r1 = Math.min(12.7, r0 + 10.6); r0 = Math.min(r0, r1 - 10.6); }
-    const z0 = (r0 - 6) * 2, z1 = (r1 - 6) * 2, xw = HALF + 0.6;
+    if (mode !== 'board' && aspect >= 1) { r0 = Math.max(-0.7, frogRow - 5.2); r1 = Math.min(12.7, r0 + 10.6); r0 = Math.min(r0, r1 - 10.6); }
+    const z0 = (r0 - 6) * 2, z1 = (r1 - 6) * 2, xw = HALF + (aspect < 1 ? 0.15 : 0.6);
     pts[0].set(-xw, 0, z0); pts[1].set(xw, 0, z0); pts[2].set(-xw, 0, z1); pts[3].set(xw, 0, z1); pts[4].set(-xw, 1.2, z1 - 0.6); pts[5].set(xw, 1.2, z1 - 0.6);
     const tz = (z0 + z1) / 2, tgt = target.set(0, 0, tz);
     return { tgt: tgt.clone(), pitch, dist: fitDistance(tgt, pitch, pts) };
@@ -468,7 +468,7 @@ export function createView(canvas, { gfx = null, low = false, layer = null, touc
     W = Math.max(1, r.width); H = Math.max(1, r.height);
     renderer.setPixelRatio(pixelRatio());
     renderer.setSize(W, H, false);
-    camera.aspect = W / H; camera.fov = W < H ? 40 : 38; camera.updateProjectionMatrix(); setOffset();
+    camera.aspect = W / H; camera.fov = W < H ? 26 : 38; camera.updateProjectionMatrix(); setOffset();
     post.resize(); fx.setScale(H * renderer.getPixelRatio());
   }
 
