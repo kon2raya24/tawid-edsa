@@ -24,6 +24,7 @@ const data = {
   difficulty: DIFFICULTY[saved.difficulty] ? saved.difficulty : 'madali',
   hints: Array.isArray(saved.hints) ? saved.hints : [],
   reached: saved.reached && typeof saved.reached === 'object' ? saved.reached : {},
+  seen: Array.isArray(saved.seen) ? saved.seen : [], // the levels whose flyover you've watched: shorter after the first time
   gfx: [0, 1, 2].includes(saved.gfx) ? saved.gfx : 'auto', // graphics: auto (steps down on slow devices) or a fixed level
   // the player's settings: the camera (following Kokak, or the whole board), the touch controls, the sound
   opt: { cam: 'cine', pad: 'pad', music: 1, sfx: 1, ...(saved.opt || {}) },
@@ -70,7 +71,11 @@ function begin() {
   if (view) view.fx.clear();
   clearInput(); show(null);
   lastPhase = null;
-  if (view && Q.get('intro') !== '0') { mode = 'intro'; view.intro(game, reduced() ? 1.2 : 2.6); banner(true); }
+  if (view && Q.get('intro') !== '0') {
+    const first = !data.seen.includes(game.level);
+    if (first) { data.seen.push(game.level); persist(); }
+    mode = 'intro'; view.intro(game, reduced() ? 1.1 : first ? 2.4 : 1.5); banner(true);
+  }
   else { mode = 'play'; banner(true); }
   if (game.snake) hint('snake', 'May ahas sa isla! Pabalik-balik lang siya. Abangan ang pagdaan.');
 }
@@ -87,8 +92,9 @@ function banner(on) {
 function levelCleared() {
   data.reached[data.difficulty] = Math.max(data.reached[data.difficulty] || 1, game.level + 1);
   persist();
-  toast('KUMPLETO ANG PAMILYA!', 'Kokak! Kokak! +1000', 1800);
-  later(2000, () => {
+  toast('KUMPLETO ANG PAMILYA!', 'Kokak! Kokak! +1000', 1700);
+  later(1750, () => { A.event({ type: 'whistle' }, game); if (!reduced()) toast('', 'Manong Enforcer: "Ayos, Kokak! Ingat sa susunod!"', 1100); });
+  later(3000, () => {
     mode = 'clear';
     $('clear-place').textContent = `Level ${game.level} · ${game.def.name}: nakauwi ang lahat!`;
     const rows = [['Puntos', game.score], ['Buong pamilya', `+${POINTS.all}`], ['Buhay na natitira', game.lives]];
@@ -150,6 +156,7 @@ function onEvent(e) {
       if (e.cause === 'pilapil') hint('pilapil', 'Tumalon diretso sa dahon ng gabi, hindi sa pilapil.');
       break;
     case 'home': buzz(25); if (!reduced()) stopT = 0.07; break;
+    case 'lusot': buzz(12); if (!reduced()) slowT = Math.max(slowT, 0.14); hint('lusot', 'LUSOT! Muntik na! +25 sa bawat dikit na sasakyan na nalusutan mo.'); break;
     case 'extraLife': if (!R) toast('EXTRA BUHAY!', 'Isa pang Kokak', 1400); break;
     case 'timeLow': if (!R) toast('BILIS, KOKAK!', '10 segundo na lang', 1200); break;
     case 'levelClear': levelCleared(); break;
@@ -172,6 +179,8 @@ const playing = () => mode === 'play' && game;
 function press(d) { if (mode === 'intro') { if (view) view.skipIntro(); return; } if (playing()) pressed.push(d); }
 document.addEventListener('keydown', (e) => {
   const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+  // any key skips the flyover (a direction only skips it; the next press hops)
+  if (mode === 'intro' && !['Shift', 'Control', 'Alt', 'Meta'].includes(k)) { e.preventDefault(); if (k === 'p' || k === 'Escape') pause(); else if (k === 'm') toggleSound(); else view.skipIntro(); return; }
   if (k in DIRS && (playing() || mode === 'intro')) { e.preventDefault(); if (!e.repeat) press(DIRS[k]); if (playing()) held.add(DIRS[k]); return; }
   const onButton = document.activeElement?.tagName === 'BUTTON';
   if ((k === ' ' || k === 'Enter') && !onButton) {
@@ -223,7 +232,8 @@ function readPad(dt) {
     if (fresh) press(dir);
     if (dir >= 0 && playing()) held.add(dir);
     if (edge(9)) pause();
-    if (edge(0) && mode === 'intro') view.skipIntro();
+    if (mode === 'intro' && p.buttons.some((x, i) => x.pressed && !pad.btn['any' + i])) view.skipIntro();
+    p.buttons.forEach((x, i) => { pad.btn['any' + i] = x.pressed; });
     return;
   }
   pad.rep -= dt;
@@ -324,13 +334,14 @@ function hud(g) {
 }
 
 // ---------- loop ----------
-let last = performance.now(), t = 0;
+let last = performance.now(), t = 0, hudY = -1;
 function frame(now) {
   const dt = Math.max(0, Math.min(0.05, (now - last) / 1000));
   last = now; t += dt;
   readPad(dt);
   if (game && mode === 'intro' && view && view.introLeft <= 0) { mode = 'play'; if (toastT <= 0) nextTip(); }
-  document.body.classList.toggle('cine', mode === 'intro');
+  document.body.classList.toggle('cine', mode === 'intro' || (mode === 'play' && !!game && game.phase === 'clear'));
+  document.body.classList.toggle('introing', mode === 'intro');
   if (game && mode === 'play') {
     const input = AUTOPLAY ? bot(game, { react: 6, jitter: 3, rand: () => rand(demoDice) }) : { pressed, held: [...held] };
     pressed = [];
@@ -346,6 +357,10 @@ function frame(now) {
   if (toastT > 0 && (toastT -= dt) <= 0) { $('toast').hidden = true; nextTip(); }
   const g = game || demo;
   if (game && (mode === 'play' || mode === 'intro' || mode === 'pause')) hud(game);
+  // on a phone held upright, the lives and the timer sit just under the board, in the strip above the d-pad
+  const under = !!view && touch && innerHeight > innerWidth;
+  document.body.classList.toggle('hud-under', under);
+  if (under) { const y = Math.round(view.boardBottom() + 6); if (y !== hudY) { hudY = y; $('hud-bot').style.top = `${y}px`; } }
   if (view) {
     const vm = !game ? 'title' : mode === 'over' ? 'over' : game.phase === 'clear' ? 'clear' : 'play';
     view.frame(g, dt, { mode: vm, reduced: reduced(), camMode: data.opt.cam, snap: SNAP });

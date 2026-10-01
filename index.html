@@ -33,6 +33,7 @@ body.flat #view, body.flat .hud-top, body.flat .hud-bot, body.flat #banner { dis
 #floaters { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
 .float { position: absolute; left: 0; top: 0; white-space: nowrap; font: italic 900 22px/1 "Barlow Condensed", sans-serif; letter-spacing: .03em; color: #fff; text-shadow: 0 2px 0 #0a0c12, 0 0 12px rgba(0,0,0,.6); }
 .float.big { font-size: 30px; background: linear-gradient(180deg, #fffbe0, #7cf29a 55%, #2fae5a); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0 3px 0 #0a0c12); text-shadow: none; }
+.float.lusot { font-size: 34px; letter-spacing: .06em; background: linear-gradient(180deg, #ffffff, #9ad7ff 55%, #2f8fd6); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0 3px 0 #0a0c12); text-shadow: none; transform-origin: center; }
 .float.gold { color: var(--gold); } .float.blue { color: #9ad7ff; } .float.red { color: #ff6a5a; font-size: 30px; } .float.pink { color: var(--pink); font-size: 26px; }
 /* the HUD */
 #hud { position: absolute; inset: 0; pointer-events: none; }
@@ -77,6 +78,12 @@ body.touch.playing .pad { display: grid; } body.nopad .pad { display: none !impo
 .pad button:active { background: rgba(124,242,154,.45); }
 .pad [data-dir="0"] { grid-column: 2; grid-row: 1; } .pad [data-dir="3"] { grid-column: 1; grid-row: 2; } .pad [data-dir="2"] { grid-column: 2; grid-row: 2; } .pad [data-dir="1"] { grid-column: 3; grid-row: 2; }
 body.touch.playing .hud-bot { bottom: calc(max(12px, env(safe-area-inset-bottom)) + 196px); }
+/* phone, upright: a compact strip right under the board */
+body.hud-under .hud-bot { bottom: auto; left: 10px; right: 10px; align-items: center; }
+body.hud-under .hud-bot .chip { padding: 2px 10px 3px; box-shadow: 0 0 0 2px #0a0c12; }
+body.hud-under #lives i { width: 18px; height: 15px; }
+body.hud-under .timer { width: 52vw; padding: 2px 10px 5px; }
+body.hud-under .pad { grid-template-columns: repeat(3, 86px); grid-template-rows: repeat(2, 72px); gap: 10px; bottom: calc(max(12px, env(safe-area-inset-bottom)) + 30px); }
 /* screens */
 .screen { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: safe center; gap: 10px; padding: 20px 16px 44px; text-align: center; background: radial-gradient(ellipse at 50% 45%, rgba(8,10,18,.1), rgba(8,10,18,.62)); overflow-y: auto; animation: fade .35s ease-out; }
 @keyframes fade { from { opacity: 0; } }
@@ -128,7 +135,7 @@ body.calm * { animation: none !important; }
 .stage::before, .stage::after { content: ""; position: absolute; left: 0; right: 0; height: 0; background: #000; z-index: 4; transition: height .45s ease; pointer-events: none; }
 .stage::before { top: 0; } .stage::after { bottom: 0; }
 body.cine .stage::before, body.cine .stage::after { height: 11vh; }
-body.cine .hud-top, body.cine .hud-bot, body.cine .corner, body.cine #toast, body.cine .pad { opacity: 0; }
+body.cine .hud-top, body.cine .hud-bot, body.cine .corner, body.introing #toast, body.cine .pad { opacity: 0; }
 .hud-top, .hud-bot { transition: opacity .4s; }
 </style>
 </head>
@@ -145,7 +152,7 @@ body.cine .hud-top, body.cine .hud-bot, body.cine .corner, body.cine #toast, bod
       <div class="chip" id="place-chip"><small id="place-sub">LEVEL 1 · ESTERO</small><b id="place-name">CUBAO · EDSA</b></div>
       <div class="chip" id="best-chip"><small>BEST</small><b id="best">0</b></div>
     </div>
-    <div class="hud-bot">
+    <div class="hud-bot" id="hud-bot">
       <div class="chip" id="lives" aria-label="Lives"></div>
       <div class="chip timer"><small><span>ORAS</span><span id="time-num">40</span></small><div class="bar"><div id="time-fill"></div></div></div>
     </div>

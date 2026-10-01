@@ -8,7 +8,7 @@ let n = 0;
 export function waterMaterial({ color = '#23413a', deep = '#0d1a18', normal, opacity = 0.9, rows = null } = {}) {
   const u = {
     wTime: { value: 0 }, wRain: { value: 0.5 }, wNorm: { value: normal }, wDeep: { value: new THREE.Color(deep) },
-    wVel: { value: new Float32Array(7) }, wFoam: { value: new THREE.Color('#c8d8d0') }, wRows: { value: rows ? 1 : 0 }, wStill: { value: 0 },
+    wVel: { value: new Float32Array(7) }, wRip: { value: [0, 1, 2, 3].map(() => new THREE.Vector3(0, 0, -99)) }, wFoam: { value: new THREE.Color('#c8d8d0') }, wRows: { value: rows ? 1 : 0 }, wStill: { value: 0 },
   };
   const m = new THREE.MeshPhysicalMaterial({ color, roughness: 0.06, metalness: 0, ior: 1.333, specularIntensity: 1, transparent: opacity < 1, opacity, envMapIntensity: 1.6, clearcoat: 0.3, clearcoatRoughness: 0.1 });
   m.userData.water = u;
@@ -16,7 +16,7 @@ export function waterMaterial({ color = '#23413a', deep = '#0d1a18', normal, opa
     Object.assign(sh.uniforms, u);
     sh.vertexShader = 'varying vec3 vWPos;\n' + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\n  vWPos = (modelMatrix * vec4(transformed, 1.0)).xyz;');
     sh.fragmentShader = `varying vec3 vWPos;
-uniform float wTime, wRain, wRows, wStill; uniform sampler2D wNorm; uniform vec3 wDeep, wFoam; uniform float wVel[7];
+uniform float wTime, wRain, wRows, wStill; uniform vec3 wRip[4]; uniform sampler2D wNorm; uniform vec3 wDeep, wFoam; uniform float wVel[7];
 float wh(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 // the lane a point is in (rows 1..5 lie between z = -11 and z = -1), and how near its edge
 float laneVel(float z){ float r = clamp(floor((z + 13.0) / 2.0), 0.0, 6.0); return wVel[int(r)]; }
@@ -40,6 +40,11 @@ vec2 rainRings(vec2 p, float t, float cell){
     vec3 n1 = texture2D(wNorm, q1).xyz * 2.0 - 1.0, n2 = texture2D(wNorm, q2).xyz * 2.0 - 1.0;
     vec2 slope = (n1.xy * 0.55 + n2.xy * 0.4) * (1.0 - wStill * 0.7);
     slope += rainRings(P.xz, t * 1.6, 0.55) * 0.9 * wRain + rainRings(P.xz + 17.3, t * 1.3 + 0.5, 0.8) * 0.7 * wRain;
+    // rings spreading from where Kokak lands (and falls in)
+    for (int i = 0; i < 4; i++) {
+      vec2 dv = P.xz - wRip[i].xy; float d = length(dv), age = t - wRip[i].z;
+      if (age > 0.0 && age < 2.2 && d > 0.001) { float front = age * 2.6; float w = sin((d - front) * 7.0) * exp(-abs(d - front) * 2.2) * exp(-age * 1.6) * smoothstep(front + 0.6, front - 0.2, d); slope += (dv / d) * w * 0.9; }
+    }
     vec3 nW = normalize(vec3(-slope.x, 1.0, -slope.y));
     normal = normalize((viewMatrix * vec4(nW, 0.0)).xyz);
   }`)
@@ -60,6 +65,10 @@ vec2 rainRings(vec2 p, float t, float cell){
   m.customProgramCacheKey = () => key;
   return m;
 }
+
+// A ring from a landing at (x, z), at the water's time t.
+let ri = 0;
+export function rippleAt(m, x, z, t) { const u = m.userData.water; u.wRip.value[ri++ % 4].set(x, z, t); }
 
 // Each frame: the time, the rain, and each row's current (m/s along x) for rows 0..6.
 export function updateWater(m, t, rain, vel) {

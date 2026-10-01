@@ -297,3 +297,38 @@ test('the ready pause holds the frog while the traffic already runs', () => {
   assert.notEqual(objectsAt(g.lanes[11], g.tick)[0].left, before);
   assert.equal(platformAt(g, 12, colX(7), g.tick), null);
 });
+
+test('a near miss, "Lusot!": landing just behind a vehicle driving away, or hopping out just before one arrives, is worth 25', async () => {
+  const { NEAR, LUSOT } = await import('../src/game.mjs');
+  // the frog hops from the sidewalk into row 11, landing just behind a jeep driving east (still, so it's exact)
+  const behind = (gapU) => {
+    const g = play();
+    const x = colX(7);
+    g.lanes[11] = lane(11, { type: 'jeep', dir: 1, speed: 0, len: 2, loop: 20, at: [(x + 78 + gapU - 20) / CELL] });
+    const ev = run(g, HOP + 1, (k) => (k === 0 ? press(UP) : { pressed: [], held: [] }));
+    return { ev, g };
+  };
+  let r = behind(NEAR - 10);
+  assert.ok(!r.ev.some((e) => e.type === 'died'));
+  const l = r.ev.find((e) => e.type === 'lusot');
+  assert.ok(l && l.how === 'behind'); assert.equal(r.g.score, POINTS.step + POINTS.lusot);
+  r = behind(NEAR + 30);
+  assert.ok(!r.ev.some((e) => e.type === 'lusot'), 'a wide gap is no near miss');
+  // a jeep driving west, toward the frog: landing in front of it is a near miss only if the frog gets out
+  const g = play();
+  g.lanes[11] = lane(11, { at: [100] });
+  put(g, 11, colX(7)); g.best = 11;
+  // a car reaches the frog's spot a few ticks after its hop up takes it out of the lane
+  g.lanes[11] = lane(11, { type: 'taxi', dir: -1, speed: 30, len: 1, loop: 40, at: [(colX(7) + 78 - 20 + HOP / 2 * 30 + 3 * 30) / CELL] });
+  g.lanes[10] = lane(10, { at: [100] });
+  const ev = run(g, HOP + 2, (k) => (k === 0 ? press(UP) : { pressed: [], held: [] }));
+  assert.ok(!ev.some((e) => e.type === 'died'), JSON.stringify(ev));
+  const e = ev.find((x) => x.type === 'lusot');
+  assert.ok(e && e.how === 'escaped' && e.row === 11 && LUSOT >= 3);
+  // and if the car is far off, nothing
+  const g2 = play();
+  put(g2, 11, colX(7)); g2.best = 11;
+  g2.lanes[11] = lane(11, { type: 'taxi', dir: -1, speed: 30, len: 1, loop: 40, at: [(colX(7) + 78 - 20 + HOP / 2 * 30 + (LUSOT + 6) * 30) / CELL] });
+  g2.lanes[10] = lane(10, { at: [100] });
+  assert.ok(!run(g2, HOP + 2, (k) => (k === 0 ? press(UP) : { pressed: [], held: [] })).some((x) => x.type === 'lusot'));
+});

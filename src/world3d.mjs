@@ -180,12 +180,35 @@ export function buildWorld({ scene, T, tex }) {
   add(plane(400, 190, M.vc, { z: 106, y: -0.02 })).material = new THREE.MeshStandardMaterial({ color: '#2a2a2e', roughness: 0.95 });
   const shop = new Kit(), SIGNS = ['#e8384f', '#2f6fd6', '#ffd23f', '#3fae5a', '#ff8ae2', '#f08a1a'];
   for (let x = -70; x < 70;) {
-    const w = 5 + rnd() * 4, h = 3.8 + rnd() * 2.4, d = 8, c = pick(['#d8cfc0', '#c0c8c8', '#e0d0b0', '#b8b0c0', '#d0b8a0']);
-    shop.box('vc', w, h, d, c, { x: x + w / 2, y: h / 2, z: 19.6 + d / 2 });
-    shop.box('vc', w, 0.2, 1.6, '#6a6a70', { x: x + w / 2, y: 3.1, z: 19.0 }); // the awning
-    shop.box('lamp', w * 0.8, 0.9, 0.1, lamp(pick(SIGNS), 1.3), { x: x + w / 2, y: 3.5, z: 19.5 }); // the shop's lit sign
-    shop.box('lamp', w * 0.7, 2.2, 0.06, lamp('#ffdcaa', 0.9), { x: x + w / 2, y: 1.3, z: 19.55 }); // its lit front
-    for (let fl = 1; fl < h / 3 - 0.3; fl++) for (let k = 0; k < Math.floor(w / 1.6); k++) shop.box(rnd() < 0.4 ? 'lamp' : 'vc', 0.9, 1.1, 0.06, rnd() < 0.5 ? lamp('#ffcf88', 1.2) : '#1a1d24', { x: x + 0.9 + k * 1.6, y: 2 + fl * 3, z: 19.55 });
+    const w = 5 + rnd() * 4, h = 3.8 + rnd() * 2.4, d = 8, c = pick(['#d8cfc0', '#c0c8c8', '#e0d0b0', '#b8b0c0', '#d0b8a0']), cx = x + w / 2, zf = 19.6;
+    shop.box('vc', w, h, d, c, { x: cx, y: h / 2, z: zf + d / 2 });
+    shop.box('vc', w + 0.1, 0.22, 0.3, '#e8e2d6', { x: cx, y: h + 0.11, z: zf + 0.1 }); // a parapet along the roof
+    // a striped awning, sloping out over the sidewalk
+    const ac = pick(SIGNS);
+    for (let s2 = 0; s2 < Math.floor(w / 0.5); s2++) shop.box('vc', 0.5, 0.05, 1.5, s2 % 2 ? '#f4f1e8' : ac, { x: x + 0.25 + s2 * 0.5, y: 2.85, z: zf - 0.7, rx: 0.32 });
+    shop.box('lamp', w * 0.8, 0.8, 0.1, lamp(pick(SIGNS), 1.3), { x: cx, y: 3.5, z: zf - 0.05 }); // the shop's lit sign
+    shop.box('vc', w * 0.8 + 0.16, 0.92, 0.08, '#2a2a2e', { x: cx, y: 3.5, z: zf - 0.02 });
+    shop.box('lamp', w * 0.7, 2.2, 0.06, lamp('#ffdcaa', 0.9), { x: cx, y: 1.3, z: zf - 0.05 }); // its lit front
+    if (rnd() < 0.4) { shop.box('lamp', 0.12, 1.6, 0.5, lamp(pick(SIGNS), 1.5), { x: x + 0.3, y: 3.9, z: zf - 0.35 }); } // a blade sign
+    // the upper floors: framed windows, sills, an aircon here and there, a balcony on some
+    for (let fl = 1; fl < h / 3 - 0.3; fl++) {
+      const y = 2 + fl * 3, n = Math.floor(w / 1.6);
+      for (let k2 = 0; k2 < n; k2++) {
+        const wx2 = x + 0.9 + k2 * 1.6, lit = rnd() < 0.4;
+        shop.box('vc', 1.06, 1.26, 0.06, '#f0ece2', { x: wx2, y, z: zf - 0.02 }); // the frame
+        shop.box(lit ? 'lamp' : 'vc', 0.9, 1.1, 0.06, lit ? lamp('#ffcf88', 1.2) : '#1a1d24', { x: wx2, y, z: zf - 0.05 });
+        shop.box('vc', 1.16, 0.08, 0.2, '#d8d2c6', { x: wx2, y: y - 0.66, z: zf - 0.1 }); // sill
+        for (let b = -0.4; b <= 0.41; b += 0.2) shop.box('metal', 0.03, 1.1, 0.03, '#2a2a2a', { x: wx2 + b, y, z: zf - 0.1 }); // grille
+        if (rnd() < 0.35) { shop.rbox('vc', 0.7, 0.45, 0.32, 0.04, '#d8dce0', { x: wx2, y: y - 1.0, z: zf - 0.2 }); shop.cyl('vc', 0.15, 0.15, 0.02, '#4a4e54', { x: wx2 + 0.12, y: y - 1.0, z: zf - 0.37, rx: Math.PI / 2 }, 12); }
+      }
+      if (rnd() < 0.5) {
+        shop.box('vc', w * 0.7, 0.12, 0.9, '#cfc8bc', { x: cx, y: y - 1.2, z: zf - 0.45 }); // a balcony
+        for (let b = 0; b <= w * 0.7; b += 0.18) shop.box('metal', 0.025, 0.8, 0.025, '#3a3a3e', { x: cx - w * 0.35 + b, y: y - 0.75, z: zf - 0.88 });
+        shop.box('metal', w * 0.7, 0.05, 0.05, '#3a3a3e', { x: cx, y: y - 0.35, z: zf - 0.88 });
+        for (let p2 = 0; p2 < 3; p2++) shop.ball('vc', 0.18, pick(['#3f8f3a', '#4fa044', '#e8388a']), { x: cx - w * 0.3 + p2 * 0.5, y: y - 0.95, z: zf - 0.7 });
+      }
+    }
+    if (rnd() < 0.5) shop.cyl('vc', 0.5, 0.5, 0.9, '#2f6fd6', { x: cx + w * 0.25, y: h + 0.45, z: zf + 3 }, 12); // a water tank on the roof
     x += w + 0.15;
   }
   // ---------- the far bank: shanties along the water ----------
@@ -209,12 +232,22 @@ export function buildWorld({ scene, T, tex }) {
   const places = [0, 1, 2, 3].map(() => { const g = new THREE.Group(); g.visible = false; add(g); return g; });
   const winMats = [0, 1, 2, 3].map((n) => [0, 1, 2].map((k) => { const w = T.windows(40 + n * 7 + k, { cols: 8, rows: 14, color: ['#7a8090', '#8a8478', '#6a7078'][k], lit: [0.35, 0.15, 0.25, 0.6][n], warm: k !== 2 }); return new THREE.MeshStandardMaterial({ map: w.map, emissiveMap: w.emissive, emissive: '#ffffff', emissiveIntensity: [1.2, 0.5, 0.6, 2.2][n], roughness: 0.7 }); }));
   const skyline = (n, g, { z0 = -46, count = 26, tall = 1 } = {}) => {
-    const groups = [[], [], []];
+    const groups = [[], [], []], roof = new Kit();
     for (let k = 0; k < count; k++) {
       const w = 8 + rnd() * 10, h = (12 + rnd() * 34) * tall, d = 8 + rnd() * 8, x = -110 + (k / count) * 220 + rnd() * 6, z = z0 - rnd() * 50;
-      const geo = new THREE.BoxGeometry(w, h, d); const uv = geo.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * w / 10, uv.getY(i) * h / 16); geo.translate(x, h / 2, z);
-      groups[k % 3].push(geo);
+      const block = (bw, bh, bd, by) => { const geo = new THREE.BoxGeometry(bw, bh, bd); const uv = geo.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * bw / 10, uv.getY(i) * bh / 16); geo.translate(x, by + bh / 2, z); groups[k % 3].push(geo); };
+      // a podium, the tower, and on some a setback above: not just boxes
+      const pod = 6 + rnd() * 4;
+      block(w * 1.25, pod, d * 1.2, 0);
+      const top = rnd() < 0.55 ? h * (0.55 + rnd() * 0.2) : h;
+      block(w, top - pod, d, pod);
+      if (top < h) block(w * 0.68, h - top, d * 0.7, top);
+      roof.box('vc', w * (top < h ? 0.72 : 1.04), 0.6, d * (top < h ? 0.74 : 1.04), '#5a5c62', { x, y: h + 0.3, z }); // the crown
+      if (rnd() < 0.6) roof.cyl('vc', 1, 1, 1.8, '#6a7080', { x: x + w * 0.2, y: h + 1.5, z }, 10);
+      if (rnd() < 0.5) { roof.cyl('metal', 0.08, 0.08, 6, '#8a8a90', { x: x - w * 0.2, y: h + 3.6, z }, 6); roof.ball('lamp', 0.3, lamp('#ff3020', 3), { x: x - w * 0.2, y: h + 6.6, z }); } // a mast with its warning light
+      if (n >= 2 && rnd() < 0.4) roof.box('lamp', w * 1.02, 0.3, d * 1.02, lamp(pick(['#40d0ff', '#ff4fb0', '#ffd23f']), 1.6), { x, y: pod + 0.15, z }); // an LED band
     }
+    for (const [slot, geo] of Object.entries(roof.build())) g.add(mesh(geo, slot === 'lamp' ? M.lamp : slot === 'metal' ? M.metal : M.vc, false, false));
     groups.forEach((list, k) => { const mt = winMats[n][k].clone(); mt.map = mt.map.clone(); mt.emissiveMap = mt.emissiveMap.clone(); for (const t of [mt.map, mt.emissiveMap]) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.needsUpdate = true; } g.add(mesh(mergeGeometries(list), mt, false, false)); });
   };
   const railway = (g, { z = -27, color = '#9a9890', train = '#d8dce0', stripe = '#1f5fbf' } = {}) => {

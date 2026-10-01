@@ -12,7 +12,7 @@ import * as T from './tex.mjs';
 import { createPost } from './post.mjs';
 import { vehicleModel, wheelModel, horseLeg, floaterModel, buwayaModel, flipperModel, crocJaw, miniFrog, lamokModel, wingGeo, snakeHead, gabiLeafGeo, PAINT, enforcerModel, enforcerArm } from './models3d.mjs';
 import { createKokak, frogTextures } from './frog3d.mjs';
-import { updateWater } from './water3d.mjs';
+import { updateWater, rippleAt } from './water3d.mjs';
 import { buildWorld, WET } from './world3d.mjs';
 import { createFx } from './fx3d.mjs';
 import { loadSky, loadBackdrop, dressSurfaces, dressProps, loadTex, SKY } from './envpack.mjs';
@@ -160,7 +160,7 @@ export function createView(canvas, { gfx = null, low = false, layer = null, touc
   // ripples: rings opening where Kokak lands in or near the water
   const rippleP = new Pool(dyn, (() => { const g = new THREE.PlaneGeometry(1, 1); g.rotateX(-HP); return g; })(), addMat(T.ring(128)), 24, { shadow: false, tint: true, order: 3 });
   const ripples = [];
-  const ripple = (x, y, z, size = 1) => { ripples.push({ x, y, z, t: 0, size }); if (ripples.length > 24) ripples.shift(); };
+  const ripple = (x, y, z, size = 1) => { ripples.push({ x, y, z, t: 0, size }); if (ripples.length > 24) ripples.shift(); rippleAt(y > 0 ? world.flood : world.water, x, z, clock); };
   const foamP = new Pool(dyn, (() => { const g = new THREE.PlaneGeometry(1, 1); g.rotateX(-HP); return g; })(), (() => { const m = addMat(glowT); m.opacity = 0.5; return m; })(), 200, { shadow: false, tint: true, order: 3 });
 
   // ---------- Kokak and the family ----------
@@ -335,7 +335,7 @@ export function createView(canvas, { gfx = null, low = false, layer = null, touc
       const x = wx(b * CELL + CELL / 2), z = wz(HOME);
       compose(m4, x, WATER_Y + 0.05 + Math.sin(t * 1.2 + i) * 0.02, z, 0.4 * Math.sin(i * 7) + Math.PI, 0, 0); for (const p of padP) p.pool.put(m4);
       if (g.homes[i]) {
-        const hop = homePop[i] > 0 ? Math.sin((1 - homePop[i]) * Math.PI) * 0.8 : 0, breath = o.reduced ? 0 : Math.sin(t * 3 + i) * 0.02;
+        const hop = g.phase === 'clear' && !o.reduced ? Math.max(0, Math.sin(t * 7 - i * 0.9)) * 0.7 : homePop[i] > 0 ? Math.sin((1 - homePop[i]) * Math.PI) * 0.8 : 0, breath = o.reduced ? 0 : Math.sin(t * 3 + i) * 0.02;
         compose(m4, x, WATER_Y + 0.12 + hop, z, -HP + Math.sin(t * 0.5 + i) * 0.3, 0, 0, 0.62, 0.62 * (1 + breath), 0.62);
         for (const p of family) p.pool.put(m4, p.slot === 'skin' ? FAMILY[i] : null);
       }
@@ -433,7 +433,7 @@ export function createView(canvas, { gfx = null, low = false, layer = null, touc
   const target = new THREE.Vector3(), camPos = new THREE.Vector3(), lookAt = new THREE.Vector3();
   const pts = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];
   let W = 1, H = 1;
-  function margins() { return { mx: 0.015, mt: W < H ? 0.17 : 0.2, mb: touch && W < H ? 0.6 : W < H ? 0.24 : 0.12 }; }
+  function margins() { return { mx: 0.015, mt: W < H ? 0.17 : 0.2, mb: touch && W < H ? 0.5 : W < H ? 0.24 : 0.12 }; }
   function setOffset() {
     const { mt, mb } = margins(), cy = (mb - mt) / 2;
     camera.setViewOffset(W, H, 0, (cy * H) / 2, W, H); // the usable band's middle, between the HUD rows
@@ -453,7 +453,7 @@ export function createView(canvas, { gfx = null, low = false, layer = null, touc
   }
   // the board framing: the whole width, and the rows around Kokak (all of them in 'board' mode)
   function framing(g, mode, fz) {
-    const aspect = W / H, pitch = aspect < 1 ? 1.26 : 0.76; // portrait: nearly top-down, so the rows keep their depth
+    const aspect = W / H, pitch = aspect < 1 ? 1.33 : 0.76; // portrait: nearly top-down, so the rows keep their depth
     const frogRow = (fz / 2) + 6;
     let r0 = -0.7, r1 = 12.7;
     if (mode !== 'board' && aspect >= 1) { r0 = Math.max(-0.7, frogRow - 5.2); r1 = Math.min(12.7, r0 + 10.6); r0 = Math.min(r0, r1 - 10.6); }
@@ -468,7 +468,7 @@ export function createView(canvas, { gfx = null, low = false, layer = null, touc
     W = Math.max(1, r.width); H = Math.max(1, r.height);
     renderer.setPixelRatio(pixelRatio());
     renderer.setSize(W, H, false);
-    camera.aspect = W / H; camera.fov = W < H ? 26 : 38; camera.updateProjectionMatrix(); setOffset();
+    camera.aspect = W / H; camera.fov = W < H ? 22 : 38; camera.updateProjectionMatrix(); setOffset();
     post.resize(); fx.setScale(H * renderer.getPixelRatio());
   }
 
@@ -477,7 +477,7 @@ export function createView(canvas, { gfx = null, low = false, layer = null, touc
   function event(e, g, { quiet = false } = {}) {
     const x = fs.x, y = fs.y, z = fs.z;
     switch (e.type) {
-      case 'hop': if (isWater(e.row)) fx.emit(x, WATER_Y + 0.1, z, '#bcd8e8', 6, { speed: 1.2, up: 1.5, life: 0.4, size: 0.08 }); break;
+      case 'hop': if (isWater(e.row)) { ripple(x, WATER_Y + 0.02, z, 0.6); } if (isWater(e.row)) fx.emit(x, WATER_Y + 0.1, z, '#bcd8e8', 6, { speed: 1.2, up: 1.5, life: 0.4, size: 0.08 }); break;
       case 'land': {
         fs.land = 0; fs.lastHop = null;
         if (e.water) { fx.emit(x, y + 0.05, z, '#cfe4f0', 12, { speed: 2, up: 2.4, life: 0.5, size: 0.09, floor: WATER_Y }); ripple(x, WATER_Y + 0.02, z, 1); }
@@ -509,17 +509,24 @@ export function createView(canvas, { gfx = null, low = false, layer = null, touc
         if (quiet) { cam.flash = 0; cam.shake = 0; cam.punch = 0; }
         break;
       }
-      case 'levelClear': for (let k = 0; k < 5; k++) setTimeout(() => firework(), k * 260); if (!quiet) cam.flash = 0.4; break;
+      case 'levelClear': for (let k = 0; k < 7; k++) setTimeout(() => firework(), 300 + k * 380); if (!quiet) { cam.flash = 0.4; celebT = 0; waveT = 3.2; } break;
       case 'anakAboard': fx.emit(x, y + 0.8, z, '#9ad7ff', 14, { speed: 2, up: 2, life: 0.6, size: 0.12 }); fx.say('Sakay na, bunso!', x, y + 1.6, z, { cls: 'blue' }); break;
       case 'anak': if (g.anak) fx.say('Kuya! Tulong!', wx(anakX(g, g.tick)), WATER_Y + 1.4, wz(g.anak.row), { cls: 'blue', life: 1.6 }); break;
       case 'lamok': fx.say('Bzzz!', wx(BAYS[e.bay] * CELL + CELL / 2), 1.2, wz(HOME), { cls: 'gold' }); break;
       case 'buwayaPeek': fx.say('?!', wx(BAYS[e.bay] * CELL + CELL / 2), 1.2, wz(HOME), { cls: 'red' }); break;
       case 'extraLife': fx.say('EXTRA BUHAY!', x, y + 1.8, z, { cls: 'big', life: 1.8 }); break;
       case 'respawn': fs.pop = 1; break;
+      case 'lusot': {
+        const lz = wz(e.row);
+        fx.say(`LUSOT! +${e.points}`, x, y + 1.7, z, { cls: 'lusot', life: 1.1, rise: 1.4 });
+        for (let k = 0; k < 14; k++) fx.emit(x + (Math.random() - 0.5) * 2.4, 0.4 + Math.random() * 1.2, lz + (Math.random() - 0.5) * 1.2, '#e8f4ff', 1, { speed: 6, up: 0, life: 0.3, size: 0.08, g: 0, spread: 1 });
+        if (!quiet) { cam.split = 0.6; cam.punch = Math.max(cam.punch, 0.18); cam.px = x; cam.pz = z; }
+        break;
+      }
       default: break;
     }
   }
-  let pulseT = 0;
+  let pulseT = 0, celebT = 9;
   function firework() {
     const x = (Math.random() - 0.5) * 30, y = 12 + Math.random() * 8, z = -22 - Math.random() * 10, c = ['#ffd23f', '#ff5ab0', '#7cf29a', '#40d0ff', '#ff8a3a'][Math.floor(Math.random() * 5)];
     fx.emit(x, y, z, c, 60, { speed: 7, up: 0.5, life: 1.4, size: 0.45, g: 3, spread: 1, drag: 0.96 });
@@ -559,12 +566,14 @@ export function createView(canvas, { gfx = null, low = false, layer = null, touc
     // draw
     drawLanes(g, tt, t, o); drawLamps(t); drawHome(g, tt, t, o);
     for (let i = 0; i < 5; i++) homePop[i] = Math.max(0, homePop[i] - dt * 2.5);
+    celebT += dt; if (debug.celebAt != null) celebT = debug.celebAt;
     drawKokak(g, alpha, tt, t, dt, o);
     for (const p of allPools()) p.end();
     for (let i = ripples.length - 1; i >= 0; i--) { const r = ripples[i]; r.t += dt; if (r.t > 0.9) { ripples.splice(i, 1); continue; } const k2 = r.t / 0.9, s2 = (0.4 + k2 * 2.2) * r.size; col.setScalar(0.5 * (1 - k2) * (1 - k2)); compose(m4, r.x, r.y, r.z, 0, 0, 0, s2, 1, s2); rippleP.put(m4, col); }
     glowP.end(); streakP.end(); foamP.end(); beamP.end(); lampBeamP.end(); rippleP.end();
     pulseT = Math.max(0, pulseT - dt * 2.2); pulse.intensity = pulseT * pulseT * 40;
     waveT = Math.max(0, waveT - dt);
+    if (celebT > 1.4 && celebT < 3.4) waveT = Math.max(waveT, 0.2); // he whistles and waves when a family is home
     arm.rotation.x = waveT > 0 ? 0.4 + Math.sin(t * 9) * 0.4 : Math.PI - 0.1 + Math.sin(t * 0.8) * 0.04;
     enforcer.rotation.y = -0.5 + Math.sin(t * 0.3) * 0.25;
 
@@ -581,8 +590,12 @@ export function createView(canvas, { gfx = null, low = false, layer = null, touc
       cam.tx = lerp(cam.tx, lx, k); cam.tz = lerp(cam.tz, lz, k);
       const kk = o.snap ? 1 : k; camPos.lerp(v.set(px, py, pz), kk); lookAt.lerp(v.set(lx, ly, lz), kk);
     } else if (mode === 'clear') {
-      // the family photo: in on the leaves
-      camPos.lerp(v.set(Math.sin(t * 0.15) * 2, 8.5, 2.5), Math.min(1, dt * (o.snap ? 60 : 1.6))); lookAt.lerp(v.set(0, -1.2, -11), Math.min(1, dt * (o.snap ? 60 : 2)));
+      // the celebration: a low dolly along the leaves as the family hops, a cut to Manong Enforcer's
+      // whistle and wave, then the family photo behind the results
+      const ct = celebT;
+      if (ct < 1.7 && !o.reduced) { const u = smooth(0, 1.7, ct); camPos.set(lerp(-10, 10, u), 3.2, -4.6); lookAt.set(lerp(-10, 10, u) + 0.5, WATER_Y + 0.3, -12); }
+      else if (ct < 2.9 && !o.reduced) { const u = smooth(1.7, 2.9, ct); camPos.set(-15.6 - u * 0.4, 7.1, 11.6 - u * 0.3); lookAt.set(-18.2, 6.7, 9.2); }
+      else { camPos.lerp(v.set(Math.sin(t * 0.15) * 2, 8.5, 2.5), Math.min(1, dt * (o.snap || ct < 3.1 ? 60 : 1.6))); lookAt.lerp(v.set(0, -1.2, -11), Math.min(1, dt * (o.snap || ct < 3.1 ? 60 : 2))); }
     } else {
       const d = fr.dist * (1 - cam.punch * (o.reduced ? 0 : 0.34));
       const tgt = fr.tgt.clone();
@@ -614,10 +627,13 @@ export function createView(canvas, { gfx = null, low = false, layer = null, touc
     scene.fog.near = cd + look.fog[1] - 30; scene.fog.far = cd + look.fog[2] - 30;
     fx.update(dt, t, camera, { rain: g.def.rain, center: v.set(lookAt.x, 0, lookAt.z + 2), reduced: o.reduced, flood: placeN === 1 ? 1 : 0, rainColor: look.rainC });
     cam.flash = Math.max(0, cam.flash - dt * 3);
-    post.render(dt, { flash: o.reduced ? 0 : cam.flash * 0.5, split: o.reduced ? 0 : cam.flash * 0.9, bloomBoost: placeN === 3 ? 0.1 : 0 });
+    cam.split = Math.max(0, (cam.split || 0) - dt * 3);
+    post.render(dt, { flash: o.reduced ? 0 : cam.flash * 0.5, split: o.reduced ? 0 : Math.max(cam.flash * 0.9, cam.split), bloomBoost: placeN === 3 ? 0.1 : 0 });
   }
 
-  const debug = { cam: null, introAt: null };
+  const debug = { cam: null, introAt: null, celebAt: null };
+  // where the near edge of the sidewalk (Kokak's start row) is on screen, in CSS pixels from the top
+  function boardBottom() { v.set(0, 0, 13.1).project(camera); return ((1 - v.y) / 2) * H; }
   resize();
-  return { debug, frame, event, resize, intro, skipIntro, setEnv, post, renderer, scene, camera, cam, get introLeft() { return cam.intro; }, fx, setPlace, kokakPos: fs };
+  return { debug, boardBottom, frame, event, resize, intro, skipIntro, setEnv, post, renderer, scene, camera, cam, get introLeft() { return cam.intro; }, fx, setPlace, kokakPos: fs };
 }

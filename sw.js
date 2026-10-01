@@ -1,7 +1,7 @@
 // Offline play: the game's own files (three.js included) are cached on install and served cache-first;
 // the webfonts, the scanned surfaces, the skies and the recordings are cached the first time they load.
 // Bump VERSION whenever a file changes so players get the update.
-const VERSION = 'tawidedsa-v2';
+const VERSION = 'tawidedsa-v3';
 const ASSETS = [
   './', 'index.html', 'manifest.webmanifest',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png',

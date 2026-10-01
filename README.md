@@ -17,6 +17,7 @@
   - A lamok on a leaf: +200.
   - A lost anak na palaka riding a troso: hop onto it and carry it home for +200.
   - +1,000 when the whole family is home.
+  - **Lusot!** +25 for a near miss: landing just behind a vehicle that's driving away, or hopping out of a lane a moment before a vehicle reaches you.
 - **Watch out:**
   - A buwaya: its back is a ride, its head bites. In a leaf, its eyes are a warning and its jaws are not.
   - An ahas patrols the island in the later places.
@@ -49,16 +50,30 @@ The game is drawn as a real-time 3D place in three.js, with no build step (nativ
   - **España** in the flood: brown water over the road, overcast, heavy rain.
   - **Quiapo** by the Pasig in the golden hour, with the church and Quezon Bridge's arch.
   - **Maynila** at night under the LRT, with neon.
-- **The traffic** is modelled in code: jeepneys with chrome hoods, horses and route boards, P2P buses with lit windows, taxis, tricycles, motorsiklo with riders, pedicabs, trucks with sacks of rice, and a kalesa whose horse trots. Every lamp glows.
+- **The traffic** is modelled in code:
+  - jeepneys with chrome hoods, horses, skirts, wheel arches, route boards and loaded roof racks;
+  - P2P buses with lit windows and running lights;
+  - taxis shaped like sedans, with bumpers and mirrors;
+  - tricycles, motorsiklo with riders, pedicabs, trucks with sacks of rice, and a kalesa whose horse trots.
+  
+  Every lamp glows.
+- **The buildings** have depth: the shophouses have framed, grilled windows, aircon units, balconies with plants, striped awnings, lit and blade signs, and water tanks. The skyline's towers have podiums, setbacks, crowns, masts with warning lights and LED bands.
 - **The estero** is a water shader. Each lane's current carries its own ripples and foam, so you can read the flow. Rain rings open everywhere. Troso, balsa, bangka, the ferry, banig, styro, batya, salbabida and water lilies float on it. The pagong paddle, wobble before they dive, and show as shadows while under. The buwaya's jaw snaps and its eyes glow.
 - **Kokak** is modelled and animated in code: glossy spotted skin, big eyes that blink and follow the traffic, a breathing throat, and jointed legs. A hop crouches, stretches and lands with a springy squash. The family waits on the leaves; a lamok buzzes over them, and a buwaya peeks up. The ahas slithers along the median.
-- **The camera** frames the whole width of the board from a tilted three-quarter view and follows Kokak up the rows. Settings has a whole-board option. Each level opens with a letterboxed flyover (any press skips it). A death gets a short punch-in and a beat of slow motion, a family home gets a small hit-stop, and a full family gets fireworks and a close-up.
+- **The camera** frames the whole width of the board from a tilted three-quarter view and follows Kokak up the rows. Settings has a whole-board option. On a phone held upright, it looks nearly straight down, and the lives and timer sit in a compact strip right under the board, above a bigger d-pad.
+- **Moments:**
+  - Each level opens with a letterboxed flyover. Any key, tap or button skips it, and it's shorter after the first time you see a level.
+  - A death gets a short punch-in and a beat of slow motion.
+  - A near miss gets a whoosh, a flash of speed lines and **LUSOT!**
+  - Landings and falls send rings across the water.
+  - A family home gets a small hit-stop.
+  - A full family gets fireworks, a low dolly along the leaves as the family hops, and a cut to Manong Enforcer's whistle and wave.
 - **The film look** (`src/post.mjs`, from Tumbang Preso): ambient occlusion, bloom, a filmic tone map, a grade per place, vignette, grain, and SMAA. It steps itself down on slow devices; `?gfx=0|1|2` pins the level, and so does the Graphics setting. **Bawas-galaw** (or the system's reduced-motion setting) turns off shake, flashes, camera swings and slow motion.
 - **Without WebGL**, the original flat 2D board (`src/render.mjs`) plays instead.
 
 Where things come from:
 - The scanned surfaces (asphalt, pavers, concrete, mud, grass, bark, bamboo), the four skies and a few props (trash bags, crates, a tyre, ferns, rocks, barriers, a utility box) are CC0 from [Poly Haven](https://polyhaven.com). They were converted with the Bakbakan tools into `assets/env/`. Without them the game uses its own painted surfaces.
-- The recordings in `assets/sfx/` (hits, landings, steel-drum jingles, menu clicks) are CC0 from [Kenney](https://kenney.nl). The music and the rest of the sound are synthesized.
+- The recordings in `assets/sfx/` (hits, landings, steel-drum jingles, menu clicks) are CC0 from [Kenney](https://kenney.nl). The music and the rest of the sound are synthesized. The recordings are normalised as they load, the music sits under the effects, and everything goes through a limiter.
 - Everything else (models, textures, water, rain) is made in code.
 
 Modules: `view3d.mjs` (the view, pools, camera, events), `world3d.mjs` (the static place), `models3d.mjs` and `kit.mjs` (the models), `frog3d.mjs` (Kokak), `water3d.mjs`, `fx3d.mjs` (rain, particles, floating words), `envpack.mjs` (the Poly Haven assets), `tex.mjs` (procedural textures) and `space.mjs` (where the board sits in the world). three.js r186 is bundled in `src/vendor/` (MIT).

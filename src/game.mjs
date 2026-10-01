@@ -16,7 +16,10 @@ export const HOP = 8, DIE = 72, READY = 60, REPEAT = 5;
 export const BAYS = [1, 4, 7, 10, 13];
 export const FROG = 78; // half the frog's width against traffic, in units
 export const DIVE = { period: 330, up: 210, sink: 30, under: 60 }; // then it rises for the rest
-export const POINTS = { step: 10, home: 50, perSec: 10, all: 1000, lamok: 200, anak: 200 };
+export const POINTS = { step: 10, home: 50, perSec: 10, all: 1000, lamok: 200, anak: 200, lusot: 25 };
+// A near miss ("Lusot!"): landing within NEAR units behind a vehicle driving away, or leaving a lane that
+// a vehicle reaches within LUSOT ticks of the frog's last moment in it.
+export const NEAR = 48, LUSOT = 8;
 export const LAMOK = { every: [420, 720], stay: 300 };
 export const BAY_BUWAYA = { every: [600, 900], warn: 60, stay: 240 };
 export const ANAK = { every: [600, 900], stay: 720, row: 4 };
@@ -229,7 +232,9 @@ function play(g, input, ev) {
   if (r.landed) {
     ev.push({ type: 'land', row: f.row, x: f.x, water: isWater(f.row) });
     if (f.row < g.best) { g.best = f.row; addScore(g, POINTS.step, ev); }
+    if (isRoad(f.row) && justBehind(g, f.row, f.x, g.tick)) lusot(g, f, f.row, 'behind', ev);
   }
+  if (f.hop && f.hop.t === HOP / 2 && isRoad(f.hop.frow) && f.hop.frow !== f.hop.trow && justEscaped(g, f.hop.frow, f.x, g.tick)) lusot(g, f, f.hop.frow, 'escaped', ev);
   if (r.home >= 0) { home(g, r.home, ev); if (g.phase !== 'play') return; }
   // the lost little frog: hop onto its log to carry it home
   if (g.anak && !f.hop && f.row === g.anak.row && !f.carry) {
@@ -240,6 +245,18 @@ function play(g, input, ev) {
   if (--g.timeLeft <= 0) { die(g, 'oras', ev); return; }
   if (!g.timeWarned && g.timeLeft <= 600) { g.timeWarned = true; ev.push({ type: 'timeLow' }); }
 }
+
+// The near misses, both pure functions of the tick.
+function gapTo(o, x) { const L = o.left + 20, R = o.right - 20; return x + FROG <= L ? L - (x + FROG) : x - FROG >= R ? x - FROG - R : -1; }
+export function justBehind(g, row, x, t) {
+  const lane = g.lanes[row];
+  return objectsAt(lane, t).some((o) => { const gap = gapTo(o, x), ahead = (o.left + o.right) / 2 > x; return gap >= 0 && gap <= NEAR && ahead === lane.dir > 0; });
+}
+export function justEscaped(g, row, x, t) {
+  for (let k = 1; k <= LUSOT; k++) if (carAt(g, row, x, t + k)) return true;
+  return false;
+}
+function lusot(g, f, row, how, ev) { addScore(g, POINTS.lusot, ev); ev.push({ type: 'lusot', row, x: f.x, how, points: POINTS.lusot }); }
 
 export function anakX(g, t) {
   if (!g.anak) return null;
